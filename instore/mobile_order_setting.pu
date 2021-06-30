@@ -1,0 +1,42 @@
+title モバイルオーダー設定
+
+participant staff
+participant KD
+participant InstoreServer as i
+participant OderBackendまたはtoyouke as ot
+
+== モバイルオーダー設定画面表示 ==
+staff -> KD: モバイルオーダー設定画面を開く
+KD -> i: モバイルオーダー設定取得API
+i -> i: 認証情報確認
+alt 認証情報不正
+    i -> KD: 401 Unauthorized
+    KD -> staff: 認証情報不正エラー
+end
+
+i -> ot: モバイルオーダー設定取得
+note left
+    EatIn, Takeout両方の設定を取ってくる
+end note
+ot -> i: モバイルオーダー設定
+i -> i: マッピング変換
+i -> KD: モバイルオーダー設定
+KD -> staff: モバイルオーダー設定
+
+== モバイルオーダー設定更新 ==
+staff -> KD: モバイルオーダー設定更新
+KD -> i: モバイルオーダー設定保存API
+note left
+    提供種別ごとに、提供中かどうかを渡す
+end note
+
+i -> i: 認証情報確認
+alt 認証情報不正
+    i -> KD: 401 Unauthorized
+    KD -> staff: 認証情報不正エラー
+end
+
+i -> ot: モバイルオーダー設定保存
+ot -> i: 成功 or 失敗
+i -> KD: 成功 or 失敗
+KD -> staff: kモバイルオーダー設定完了

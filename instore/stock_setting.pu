@@ -1,0 +1,87 @@
+title 品切れ設定
+
+participant staff
+participant KD
+participant InstoreServer as i
+participant OderBackendまたはtoyouke as ot
+
+== 品切れ設定一覧表示 ==
+staff -> KD: 品切れ管理画面を開く
+KD -> i: 品目カテゴリ一覧取得API
+note right
+    認証情報には、
+       ・サービスコード
+       ・ブランドコード
+       ・店舗コード
+    を含める。
+end note
+i -> i: 認証情報確認
+alt 認証情報不正
+    i -> KD: 401 Unauthorized
+    KD -> staff: 認証情報不正エラー
+    note right
+        基本は起こらない想定だが、万が一発生した場合は、
+        端末を再起動するよう促す。
+    end note
+end
+
+i -> ot: 品目カテゴリ一覧取得
+ot -> i: 品目カテゴリ一覧
+
+i -> i: マッピング変換
+i -> KD: 品目カテゴリ一覧
+note left
+    品目カテゴリの中には
+    ・品目カテゴリID
+    ・品目カテゴリ名
+    を入れる
+end note
+
+KD -> KD: 品目カテゴリ検索セレクトボックスを生成
+
+KD -> i: 品目一覧API
+note left
+    ・品目名
+    ・品目カテゴリ
+    ・品切れかどうか
+    を検索で使用する
+end note
+i -> i: 認証情報確認
+alt 認証情報不正
+    i -> KD: 401 Unauthorized
+    KD -> staff: 認証情報不正エラー
+end
+
+i -> ot: 品目一覧取得
+ot -> i: 品目一覧
+i -> i: マッピング変換
+i -> KD: 品目一覧
+note left
+    品目の中には
+    ・品目ID
+    ・品目名
+    ・品目カテゴリID
+    ・品目カテゴリ名
+    ・在庫があるかどうか
+    を入れる
+end note
+KD -> staff: 品目一覧
+
+== 品切れ設定変更 ==
+staff -> KD: 1品目を品切れに変更、または品切れ解除する
+
+KD -> i: 品切れ設定保存API
+note left
+    設定変更する品目のitemIdを含める。
+end note
+
+i -> i: 認証情報確認
+alt 認証情報不正
+    i -> KD: 401 Unauthorized
+    KD -> staff: 認証情報不正エラー
+end
+
+i -> ot: 品切れ設定更新
+ot -> i: 成功 or 失敗
+i -> KD: 成功 or 失敗
+KD -> staff: 品切れ設定更新完了

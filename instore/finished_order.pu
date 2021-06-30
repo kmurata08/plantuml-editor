@@ -1,0 +1,65 @@
+title 完了一覧
+
+participant staff
+participant KD
+participant InstoreServer as i
+participant OderBackendまたはtoyouke as ot
+
+staff -> KD: 完了一覧画面を開く
+KD -> i: 注文一覧API
+note right
+    1営業日分を取ってくる。（要件確認）
+    認証情報には、
+       ・サービスコード
+       ・ブランドコード
+       ・店舗コード
+    を含める。
+    検索パラメータがある場合は検索パラメータを入れる。
+end note
+i -> i: 認証情報照会
+alt 認証情報が不正
+    i -> KD: 401 Unauthorized
+    KD -> staff: 認証失敗エラー
+    note right
+        基本は起こらない想定だが、万が一発生した場合は、
+        再起動を行うよう促す。
+    end note
+end
+
+i -> ot: 注文一覧を取得
+ot -> i: 注文一覧
+i -> i: マッピング変換
+i -> KD: 注文一覧
+KD -> staff: 完了一覧表示
+
+...
+
+staff -> KD: 伝票詳細画面を開く
+KD -> i: 伝票詳細取得
+i -> i: 認証情報照会
+alt 認証情報が不正
+    i -> KD: 401 Unauthorized
+end
+KD -> staff: 認証失敗エラー
+note right
+    基本は起こらない想定だが、万が一発生した場合は、
+    再起動を行うよう促す。
+end note
+
+i -> ot: 注文詳細取得
+ot -> ot: 注文番号照会
+alt 注文番号が存在しない
+    ot -> i: 404 NotFound
+    i -> KD: 404 NotFound
+    KD -> staff: 注文番号が存在しないエラー
+end
+
+ot -> i: 注文詳細
+i -> i: マッピング変換
+i -> i: タグ履歴一覧取得
+note left
+    注文番号を1件取得して取ってくる
+end note
+i -> i: 注文とタグ履歴をjoin
+i -> KD: 注文詳細
+KD -> staff: 伝票詳細画面

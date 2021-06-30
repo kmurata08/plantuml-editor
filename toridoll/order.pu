@@ -1,0 +1,152 @@
+title 注文
+
+actor user
+participant toridoll_service
+participant core_sdk
+box “Instore services”
+participant instore
+participant store_app
+end box
+box “POS-NEC services” #LightBlue
+participant pos_nec_service
+participant NEC_mPOS
+end box
+box “ Payment services” #Pink
+participant payment_service
+participant GMOPG
+end box
+actor staff
+actor gig_staff
+
+== 注文（正常系) ==
+user -> toridoll_service: 商品注文ポチ
+toridoll_service -> toridoll_service: 注文番号・受取番号生成
+alt 事前決済の場合
+    toridoll_service -> core_sdk: PaymentClientInterface::オンライン決済処理
+    note right: 「決済処理の詳細は支払方法（クレカ・d払い）のそれぞれの決済シーケンスをご確認ください
+    toridoll_service <-- core_sdk: 成功
+end
+
+alt 自動承認の場合
+    toridoll_service -> core_sdk: 注文リクエスト\n(OrderClientInterface::order)
+    note left: 会計ステータスも添える。\n事前決済の場合は、instoreの会計ステータスは\n最初から会計完了になって送られる\nまた、いずれかの処理が失敗した場合、\nロールバックする必要があるので、\nロールバック用のメソッドも必要
+    core_sdk -> instore: 調理ボードへ注文をPublish
+    note left: brand_code, shop_code, 注文情報
+    instore -> instore: 内部処理
+    instore -> store_app: 調理ボードへ注文をPublish
+    store_app -> store_app: 全デバイスで注文が調理予約タブへ表示される
+    store_app --> staff: 調理確定注文が入ったことを知る
+    core_sdk <-- instore: 注文成功
+    toridoll_service <-- core_sdk: 注文成功
+    user <- toridoll_service: 注文受付メール
+else 手動承認の場合
+    toridoll_service -> core_sdk: 注文予約リクエスト
+    core_sdk -> instore: 問い合わせボードへ注文をPublish
+    note left
+        トリドールサービスでは自動承認であるため、このフローは経由しない
+    end note
+    instore -> instore: 内部処理
+    instore -> store_app: 問い合わせボードへ注文をPublish
+    store_app -> store_app: 全デバイスで注文が承認待ちタブへ表示される
+    store_app --> staff: 承認待ち注文が入ったことを知る
+    core_sdk <-- instore: 注文成功
+    toridoll_service <-- core_sdk: 注文成功
+end
+
+user <- toridoll_service: 注文完了画面(受取番号表示)
+
+...
+
+== 注文承認 ==
+alt 手動承認の場合
+    store_app <- staff: 注文承認ボタンを押下する
+    note left
+        トリドールサービスでは自動承認であるため、このフローは経由しない
+    end note
+    instore <- store_app: 注文承認通知
+    toridoll_service <- instore: 注文承認通知 (SNS)
+    instore --> store_app: 成功
+    toridoll_service -> core_sdk: 注文確定
+    core_sdk -> instore: 問い合わせボードの注文を調理ボードへ移動
+    instore -> store_app: 問い合わせボードの注文を調理ボードへ移動
+    store_app -> store_app: 全デバイスで注文が調理予約タブへ移動
+    core_sdk <-- instore: 成功
+    toridoll_service <-- core_sdk: 成功
+    user <- toridoll_service: 注文受付メール
+    toridoll_service -> toridoll_service: 注文ステータス変更\n（承認済み or 却下)
+    note left: 失敗した場合の処理は指定しておくべき
+end
+
+== 要調理 ==
+
+alt 自動で調理開始時間n分前になったら変更
+    instore <- store_app: 調理開始日時タグセット
+    instore -> store_app: 調理開始日時タグを全台に配信
+else 手動で要調理への変更をする
+    store_app <- staff: 要調理へカードを移動させる
+    instore <- store_app: 調理開始日時タグセット
+    instore -> store_app: 調理開始日時タグを全台に配信
+end
+
+store_app -> store_app: 全デバイスで注文が要調理タブへ移動
+staff -> staff: 調理
+
+== 調理完了 ==
+store_app <- staff: 調理完了ボタンを押す
+instore <- store_app: 調理完了通知
+toridoll_service <- instore: 調理完了通知(SNS)
+instore --> store_app: 成功
+toridoll_service -> toridoll_service: サービス側の内部処理
+user <- toridoll_service: 調理完了メール
+
+instore <- store_app: 調理完了日時タグセット変更
+instore -> store_app: 調理完了日時タグを全台に配信
+store_app -> store_app: 全デバイスで注文が調理完了タブへ移動
+
+toridoll_service -> core_sdk: 会計リクエスト\n(OrderClientInterface::requestAccounting)
+core_sdk -> pos_nec_service: 会計リクエスト
+note left: brand_code, shop_code, 注文情報、合計金額, etc..
+pos_nec_service -> pos_nec_service: 注文情報変換\n（tori -> mpos)
+pos_nec_service -> NEC_mPOS: 会計連携
+pos_nec_service <-- NEC_mPOS: 会計連携成功
+core_sdk <-- pos_nec_service: 会計連携成功
+
+...
+user -> user: 来店
+alt Store操作後、mPOS操作をする場合
+        store_app <- staff: お渡し完了ボタンを押す
+        instore <- store_app: お渡し完了日時タグセット
+        instore -> store_app: お渡し完了日時タグを全台に配信
+        store_app -> store_app: 全デバイスで注文がお渡し完了タブへ移動
+        toridoll_service <- instore: お渡し完了通知
+        toridoll_service -> toridoll_service: サービス側の内部処理
+        user <- toridoll_service: お渡し完了メール
+        NEC_mPOS <- staff: POS会計操作
+        NEC_mPOS <- staff : 会計完了操作を実施する
+        pos_nec_service <- NEC_mPOS: 会計完了通知
+        toridoll_service <- pos_nec_service: 取引完了通知
+        toridoll_service -> toridoll_service: 取引完了処理（売上計上など）
+        toridoll_service -> core_sdk: 注文ステータス（取引完了）連携\n(OrderClientInterface::toTransactionDone)
+        core_sdk -> instore: 注文ステータス（取引完了）連携
+
+
+else mPOS操作のみで会計処理する想定（調理ステータス：お渡し待ちのとき）
+            ...
+        NEC_mPOS <- staff : 会計を実施する
+        pos_nec_service <- NEC_mPOS: 会計処理を実施する
+        toridoll_service <- pos_nec_service: 取引完了通知
+        toridoll_service -> toridoll_service: 取引完了処理（売上計上など）
+        toridoll_service -> core_sdk: 注文ステータス（取引完了）連携\n(OrderClientInterface::toTransactionDone)
+        core_sdk -> instore: 注文ステータス（取引完了）連携
+        instore <- store_app: お渡し完了日時タグセット
+        note right: お渡し済みの変更は自動反映。Store操作不要。
+        instore -> store_app: お渡し完了日時タグを全台に配信
+        store_app -> store_app: 全デバイスで注文がお渡し完了タブへ移動
+        instore <- store_app: お渡し完了通知
+        toridoll_service <- instore: お渡し完了通知
+        instore --> store_app: 成功
+        toridoll_service -> toridoll_service: サービス側の内部処理
+        user <- toridoll_service: お渡し完了メール
+
+end
+user -> user: いただきます

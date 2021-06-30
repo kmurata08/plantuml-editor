@@ -1,0 +1,58 @@
+title デバイスアプリバージョン保存
+
+participant staff
+participant KD
+participant InstoreServer as i
+participant MasterDB as mdb
+participant SlaveDB as sdb
+
+
+staff -> KD: アプリを開く
+alt 有効なid_tokenがない
+    KD -> KD: id_token発行
+    note right
+        下記のいずれかの処理を行う
+        ・アクティベーション
+        ・トークンリフレッシュ
+        ・Signin
+    end note
+end
+
+KD -> i: デバイスアプリバージョン保存\n(SaveDeviceAppVersion)
+note right
+    下記の値を送る
+    ・id_token
+    ・開いているアプリのバージョン
+end note
+
+alt トークンが無効
+    i -> KD: 401 Unauthenticated
+end 
+
+alt current_versionのバリデーション不正
+    i -> KD: 400 Invalid Argument
+end
+
+i -> sdb: デバイスIDをキーに、保存されているデバイスアプリバージョンを取得
+sdb -> i: デバイスアプリバージョン
+note left
+    一致をチェックせず毎回更新でも良いが、
+    MasterDBへの負荷をなるべく減らすために
+    挟んでいる
+end note
+
+alt デバイスアプリバージョンがすでに存在する
+    alt 保存しようとしているデバイスアプリバージョンが、DBから取ってきたデバイスアプリバージョンと一致
+        i -> KD: 成功
+    end
+end
+
+i -> mdb: デバイスアプリバージョン保存(CreateOrUpdate)
+mdb -> i: 成功
+i -> KD: 成功
+
+KD -> i: GetKDDeviceConfigを叩く
+...
+
+KD -> staff: 調理管理画面へ
+    

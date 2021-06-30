@@ -1,0 +1,41 @@
+title ServiceTriggerエラーハンドリング
+
+participant KD
+participant instore_server
+participant SNS
+participant 外部サービス as external_service
+
+== サービス内部処理でInstoreにPublishされる情報の連携失敗を検知する場合 ==
+KD -> instore_server: ServiceTriggerを叩く
+note left
+    例: 注文承認通知
+end note
+instore_server -> SNS: メッセージPublish
+KD <-- instore_server: 成功
+...
+SNS -> external_service: HTTPリクエスト
+external_service -> external_service: 内部処理
+alt 外部サービスの内部処理が成功した場合
+    external_service -> instore_server: ステータス変更を行うPublish
+    note right
+        例: 問い合わせボードの注文を調理ボードへ移動
+    end note
+    instore_server -> KD: Publish
+    external_service <-- instore_server: 成功
+    SNS <-- external_service: 成功
+else 外部サービスの内部処理が失敗した場合
+    SNS <-- external_service: 失敗
+    note right
+        ここで失敗し、KD側ではタイムアウトエラー表示へ
+    end note
+end
+...
+KD -> KD: 30秒待つ
+KD -> KD: 操作対象リソースへのPublishがされているか確認
+note left
+    SNSからは失敗したことを受け取れないため
+end note
+
+alt 外部サービスからPublishがされていない
+    KD -> KD: タイムアウトエラー表示
+end

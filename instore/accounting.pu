@@ -1,0 +1,35 @@
+title 会計情報取得
+
+participant staff
+participant KD
+participant InstoreServer as i
+participant OderBackend as ob
+
+staff -> KD: 注文をお渡し済みに変更
+KD -> ob: 会計情報取得API
+note right
+    伝病番号で取ってくる。
+    なお、InstoreServerは経由しない。
+    認証情報には、
+       ・サービスコード
+       ・ブランドコード
+       ・店舗コード
+    を含める。
+end note
+ob -> ob: 認証情報、伝票番号照会
+alt 認証情報にある店舗に、対象の伝票が存在しない
+    ob -> KD: 404 NotFound
+end
+
+KD -> staff: 会計情報取得失敗エラー
+note right
+    基本は起こらない想定だが、万が一発生した場合は、
+    サポートに連絡するようダイアログで促す。
+end note
+
+ob -> ob: 会計情報取得・計算
+ob -> KD: 会計情報
+KD -> staff: 会計情報ポップアップ
+staff -> staff: POSに金額を入力
+staff -> KD: 会計情報ポップアップを閉じる
+KD -> i: お渡し完了日時タグセット

@@ -1,33 +1,25 @@
-title KDの印刷機能を使う場合
+title KDとPCが共存する場合
 
 participant Board as b
 participant KD as k
 participant プリンタ as pt
 
 k -> k: 端末起動
+k -> b: FetchBoard API
+b -> k: BoardObjects
+k -> k: 調理対象の注文を表示
+
+...
 
 == 未印刷伝票印刷 ==
-pt -> b: FetchBoard API
-b -> pt: BoardObjects
-
 alt 「KDApptonfig.印刷機能を使う」がtrueの場合
+    k -> b: FetchBoard API
+    b -> k: BoardObjects
     k -> k: キャンセルされた注文を取得
     note left
         ・kitchen_statusがcanceled
-        ・kd_print_statusがcancel_printedでない注文を取得
+        ・kd_[KitchenStatus]_print_statusがcancel_printedでない注文を取得
     end note
-    loop 注文分
-        alt 単票印刷の場合
-            k -> k: kd_print_statusがcancel_printedでない注文明細を取得
-            loop 注文明細分
-                k -> pt: 印刷
-                k -> b: 注文明細のkd_print_statusにcancel_printedを入れてタグセット
-            end
-        else 複票印刷の場合
-            k -> pt: 印刷
-        end
-        k -> b: 注文のkd_print_statusにcancel_printedを入れてタグセット、かつDelete
-    end
 
     k -> k: 伝票未印刷の注文を取得
     note left
@@ -37,52 +29,55 @@ alt 「KDApptonfig.印刷機能を使う」がtrueの場合
         　　kitchen_statusがcookingの注文
         ・上記に当てはまり、かつkd_print_statusがnot_printed
     end note
-    loop 注文分
-        alt 単票印刷の場合
-            k -> k: kd_print_statusがnot_printedの注文明細を取得
+
+    ...
+
+    k -> k: 未印刷キャンセル伝票印刷
+    loop 指定された未印刷キャンセル伝票分
+        alt 単票印刷する場合
             loop 注文明細分
-                k -> pt: 印刷
-                k -> b: 注文明細のkd_print_statusにvoucher_printedを入れてタグセット
+                k -> pt: 単票印刷
             end
-        else 複票印刷の場合
-            k -> pt: 印刷
         end
-        k -> b: 注文のkd_print_statusにvoucher_printedを入れてタグセット
+        alt 複票印刷する場合
+            k -> pt: 複票印刷
+        end
+        k -> b: キャンセル注文のkd_print_statusにcancel_printedを入れてタグセット
+    end
+
+    ...
+
+    k -> k: 未印刷伝票印刷
+    loop 指定された未印刷伝票分
+        alt 単票印刷する場合
+            loop 注文明細分
+                k -> pt: 単票印刷
+            end
+        end
+        alt 複票印刷する場合
+            k -> pt: 複票印刷
+        end
+        k -> b: 注文のkd_[KitchenStatus]_print_statusにvoucher_printedを入れてタグセット
     end
 end
 
 k -> k: subscribe
 
-== kitchen_statusに更新がかかる ==
-b -> k: kitchen_statusタグにwaitingが入ってくる
-alt 「KDApptonfig.印刷機能を使う」がtrueの場合
-    alt 「KDApptonfig.調理待ちで印刷する」がtrueの場合
-        alt 単票印刷の場合
-            loop 注文明細分
-                k -> pt: 印刷
-                k -> b: 注文明細のkd_print_statusにvoucher_printedを入れてタグセット
-            end
-        else 複票印刷の場合
-            k -> pt: 印刷
-        end
-        k -> b: 注文のkd_print_statusにvoucher_printedを入れてタグセット
-    end
-end
-
 ...
 
-b -> k: kitchen_statusタグにcookingが入ってくる
+== kitchen_statusに更新がかかる ==
+b -> k: kitchen_statusタグのcancel以外の更新
 alt 「KDApptonfig.印刷機能を使う」がtrueの場合
-    alt 「KDApptonfig.要調理で印刷する」がtrueの場合
-        alt 単票印刷の場合
+    alt 「KDApptonfig.[KitchenStatus]で印刷する」がtrueの場合
+        alt 単票印刷する場合
             loop 注文明細分
-                k -> pt: 印刷
-                k -> b: 注文明細のkd_print_statusにvoucher_printedを入れてタグセット
+                k -> k: 単票印刷
             end
-        else 複票印刷の場合
-            k -> pt: 印刷
         end
-        k -> b: 注文のkd_print_statusにvoucher_printedを入れてタグセット
+        alt 複票印刷する場合
+            k -> k: 複票印刷
+        end
+        k -> b: 注文のstd_[KitchenStatus]_print_statusにvoucher_printedを入れてタグセット
     end
 end
 
@@ -90,22 +85,29 @@ end
 
 b -> k: kitchen_statusタグにcanceledが入ってくる
 alt 「KDApptonfig.印刷機能を使う」がtrueの場合
-    alt 単票印刷の場合
-        loop 注文明細分
-            k -> pt: 印刷
-            k -> b: 注文明細のkd_print_statusにcancel_printedを入れてタグセット
+        alt 単票印刷する場合
+            loop 注文明細分
+                k -> pt: 単票印刷
+            end
         end
-    else 複票印刷の場合
-        k -> pt: 印刷
-    end
-    k -> b: 注文のkd_print_statusにcancel_printedを入れてタグセット、かつDelete
+        alt 複票印刷する場合
+            k -> pt: 複票印刷
+        end
+    k -> b: 注文のkd_print_statusにcancel_printedを入れてタグセット
     note right
         キャンセル伝票を印刷したら必ずDeleteされる
     end note
-else 「KDApptonfig.印刷機能を使う」がfalseの場合
-    k -> b: BoardObjectDelete
-    note right
-        印刷機能を使わない時は、必ずここでDeleteされるので、
-        FetchBoardでキャンセルの注文は取得されない
-    end note
 end
+
+...
+
+k -> b: お渡し完了日時タグセット & BoardObjectDelete
+b -> k: BoardObjectDelete
+k -> k: 調理一覧からDeleteされた注文を削除
+
+...
+
+k -> k: キャンセル注文消し込み
+k -> b: BoardObjectDelete
+b -> k: BoardObjectDelete
+k -> k: キャンセル済み注文からDeleteされた注文を削除

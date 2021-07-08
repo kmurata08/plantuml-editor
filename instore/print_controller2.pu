@@ -1,0 +1,51 @@
+title PrintController(BoardObjectのタグを使う場合)
+
+participant Platform as p
+participant OrderAdapter as oa
+participant Board as b
+participant PrintController as pc
+
+== Subscribe開始 ==
+pc -> b: 注文BoardObject一括取得(FetchBoard)
+b --> pc: 未印刷伝票BoardObjectリスト
+note left
+    下記のBoardObjectを未印刷伝票対象とする。
+    ・未印刷注文伝票
+      → order_voucher_printed_atタグが入っていない
+    ・未印刷キャンセル伝票
+      → kitchen_statusが CANCELED、かつcancel_voucher_printed_atタグが入っていない
+end note
+pc -> pc: 未印刷伝票印刷
+pc -> b: 印刷した伝票分BoardObjectTagSet
+note left
+    ・注文伝票を印刷したもの: order_voucher_printed_atを入れる
+    ・キャンセル伝票を印刷したもの: cancel_voucher_printed_atを入れる
+end note
+b --> pc: 成功
+
+pc <-> b: Subscribe
+
+note across
+    印刷命令を待機する
+end note
+...
+
+== 注文 ==
+p -> oa: 注文Webhook
+oa -> b: 注文BoardObjectAdd
+b --> oa: 成功
+oa --> p: 成功
+b -> pc: 注文BoardObjectAdd配信
+pc -> pc: キッチン伝票印刷
+pc -> b: キッチン伝票印刷日時タグセット
+b --> pc: 成功
+
+== キャンセル伝票 ==
+p -> oa: 注文Webhook
+oa -> b: キャンセル日時タグセット
+b --> oa: 成功
+oa --> p: 成功
+b -> pc: キャンセル日時タグセット配信
+pc -> pc: キャンセル伝票印刷
+pc -> b: キャンセル伝票印刷日時タグセット
+b -->pc: 成功

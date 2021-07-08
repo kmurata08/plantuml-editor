@@ -1,0 +1,40 @@
+title PrintController(BoardObjectの追加と削除を使う場合)
+
+participant Platform as p
+participant OrderAdapter as oa
+participant Board as b
+participant PrintController as pc
+
+== Subscribe開始 ==
+pc -> b: 未印刷伝票BoardObject一括取得(FetchBoard)
+b --> pc: 未印刷伝票BoardObjectリスト
+pc -> pc: 未印刷伝票印刷
+pc -> b: 印刷した伝票分BoardObjectDelete
+b --> pc: 成功
+
+pc <-> b: Subscribe
+
+note across
+    印刷命令を待機する
+end note
+...
+
+== 注文 ==
+p -> oa: 注文Webhook
+oa -> b: キッチン伝票BoardObjectAdd
+b --> oa: 成功
+oa --> p: 成功
+b -> pc: キッチン伝票印刷配信
+pc -> pc: キッチン伝票印刷
+pc -> b: キッチン伝票BoardObjectDelete
+b --> pc: 成功
+
+== キャンセル伝票 ==
+p -> oa: 注文Webhook
+oa -> b: キャンセル伝票BoardObjectAdd
+b --> oa: 成功
+oa --> p: 成功
+b -> pc: キャンセル伝票印刷配信
+pc -> pc: キャンセル伝票印刷
+pc -> b: キャンセル伝票BoardObjectDelete
+b -->pc: 成功

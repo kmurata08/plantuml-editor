@@ -1,14 +1,16 @@
-title KDとPrintControllerが共存する場合
+title KDの印刷機能を使う場合
 
 participant Board as b
 participant KD as k
-participant PrintController as pc
+participant プリンタ as pt
 
-pc -> pc: 端末起動
+k -> k: 端末起動
 
 == 未印刷伝票印刷 ==
-b -> k: FetchBoard
-alt 「KDAppConfig.印刷機能を使う」がtrueの場合
+pt -> b: FetchBoard API
+b -> pt: BoardObjects
+
+alt 「KDApptonfig.印刷機能を使う」がtrueの場合
     k -> k: キャンセルされた注文を取得
     note left
         ・kitchen_statusがcanceled
@@ -18,20 +20,20 @@ alt 「KDAppConfig.印刷機能を使う」がtrueの場合
         alt 単票印刷の場合
             k -> k: kd_print_statusがcancel_printedでない注文明細を取得
             loop 注文明細分
-                k -> pc: 印刷
+                k -> pt: 印刷
                 k -> b: 注文明細のkd_print_statusにcancel_printedを入れてタグセット
             end
         else 複票印刷の場合
-            k -> pc: 印刷
+            k -> pt: 印刷
         end
         k -> b: 注文のkd_print_statusにcancel_printedを入れてタグセット、かつDelete
     end
 
     k -> k: 伝票未印刷の注文を取得
     note left
-        ・「KDAppConfig.調理待ちで印刷する」がtrueの場合、
+        ・「KDApptonfig.調理待ちで印刷する」がtrueの場合、
         　　kitchen_statusがwaitingの注文
-        ・「KDAppConfig.要調理で印刷する」がtrueの場合、
+        ・「KDApptonfig.要調理で印刷する」がtrueの場合、
         　　kitchen_statusがcookingの注文
         ・上記に当てはまり、かつkd_print_statusがnot_printed
     end note
@@ -39,11 +41,11 @@ alt 「KDAppConfig.印刷機能を使う」がtrueの場合
         alt 単票印刷の場合
             k -> k: kd_print_statusがnot_printedの注文明細を取得
             loop 注文明細分
-                k -> pc: 印刷
+                k -> pt: 印刷
                 k -> b: 注文明細のkd_print_statusにvoucher_printedを入れてタグセット
             end
         else 複票印刷の場合
-            k -> pc: 印刷
+            k -> pt: 印刷
         end
         k -> b: 注文のkd_print_statusにvoucher_printedを入れてタグセット
     end
@@ -53,15 +55,15 @@ k -> k: subscribe
 
 == kitchen_statusに更新がかかる ==
 b -> k: kitchen_statusタグにwaitingが入ってくる
-alt 「KDAppConfig.印刷機能を使う」がtrueの場合
-    alt 「KDAppConfig.調理待ちで印刷する」がtrueの場合
+alt 「KDApptonfig.印刷機能を使う」がtrueの場合
+    alt 「KDApptonfig.調理待ちで印刷する」がtrueの場合
         alt 単票印刷の場合
             loop 注文明細分
-                k -> pc: 印刷
+                k -> pt: 印刷
                 k -> b: 注文明細のkd_print_statusにvoucher_printedを入れてタグセット
             end
         else 複票印刷の場合
-            k -> pc: 印刷
+            k -> pt: 印刷
         end
         k -> b: 注文のkd_print_statusにvoucher_printedを入れてタグセット
     end
@@ -70,15 +72,15 @@ end
 ...
 
 b -> k: kitchen_statusタグにcookingが入ってくる
-alt 「KDAppConfig.印刷機能を使う」がtrueの場合
-    alt 「KDAppConfig.要調理で印刷する」がtrueの場合
+alt 「KDApptonfig.印刷機能を使う」がtrueの場合
+    alt 「KDApptonfig.要調理で印刷する」がtrueの場合
         alt 単票印刷の場合
             loop 注文明細分
-                k -> pc: 印刷
+                k -> pt: 印刷
                 k -> b: 注文明細のkd_print_statusにvoucher_printedを入れてタグセット
             end
         else 複票印刷の場合
-            k -> pc: 印刷
+            k -> pt: 印刷
         end
         k -> b: 注文のkd_print_statusにvoucher_printedを入れてタグセット
     end
@@ -87,16 +89,23 @@ end
 ...
 
 b -> k: kitchen_statusタグにcanceledが入ってくる
-alt 「KDAppConfig.印刷機能を使う」がtrueの場合
+alt 「KDApptonfig.印刷機能を使う」がtrueの場合
     alt 単票印刷の場合
         loop 注文明細分
-            k -> pc: 印刷
+            k -> pt: 印刷
             k -> b: 注文明細のkd_print_statusにcancel_printedを入れてタグセット
         end
     else 複票印刷の場合
-        k -> pc: 印刷
+        k -> pt: 印刷
     end
     k -> b: 注文のkd_print_statusにcancel_printedを入れてタグセット、かつDelete
-else 「KDAppConfig.印刷機能を使う」がfalseの場合
+    note right
+        キャンセル伝票を印刷したら必ずDeleteされる
+    end note
+else 「KDApptonfig.印刷機能を使う」がfalseの場合
     k -> b: BoardObjectDelete
+    note right
+        印刷機能を使わない時は、必ずここでDeleteされるので、
+        FetchBoardでキャンセルの注文は取得されない
+    end note
 end

@@ -1,12 +1,14 @@
-title PrintControllerのみ使う場合
+title PCのみを使う場合
 
 participant Board as b
 participant PrintController as pc
+participant プリンタ as pt
 
 pc -> pc: 端末起動
 
 == 未印刷伝票印刷 ==
-b -> pc: FetchBoard
+pc -> b: FetchBoard API
+b -> pc: BoardObjects
 pc -> pc: キャンセルされた注文を取得
 note left
     ・kitchen_statusがcanceled
@@ -14,9 +16,9 @@ note left
 end note
 loop 注文分
     alt 単票印刷の場合
-        pc -> pc: pr_print_statusがcancel_printedでない注文明細を取得
+        pc -> pc: pc_print_statusがcancel_printedでない注文明細を取得
         loop 注文明細分
-            pc -> pc: 印刷
+            pc -> pt: 印刷
             pc -> b: 注文明細のpc_print_statusにcancel_printedを入れてタグセット
             note right
                 紙切れなど、途中で印刷が失敗しても良いように、
@@ -25,7 +27,7 @@ loop 注文分
             end note
         end
     else 複票印刷の場合
-        pc -> pc: 印刷
+        pc -> pt: 印刷
     end
     pc -> b: 注文のpc_print_statusにcancel_printedを入れてタグセット、かつDelete
 end
@@ -44,13 +46,13 @@ loop 注文分
     alt 単票印刷の場合
         pc -> pc: pc_print_statusがnot_printedの注文明細を取得
         loop 注文明細分
-            pc -> pc: 印刷
+            pc -> pt: 印刷
             pc -> b: 注文明細のpc_print_statusにvoucher_printedを入れてタグセット
         end
     else 複票印刷の場合
-        pc -> pc: 印刷
+        pc -> pt: 印刷
     end
-    pc -> b: 注文のpc_print_statusにvoucher_printedを入れてタグセット
+    pc -> b: 注文のpc_print_statusにvoucher_printedを入れてタグセット、かつDelete
 end
 
 pc -> pc: subscribe
@@ -60,23 +62,26 @@ b -> pc: kitchen_statusタグにwaitingが入ってくる
 alt kdの印刷タイミングを引き継ぐ、かつ「KDAppConfig.調理待ちで印刷する」がtrueの場合
     alt 単票印刷の場合
         loop 注文明細分
-            pc -> pc: 印刷
+            pc -> pt: 印刷
             pc -> b: 注文明細のpc_print_statusにvoucher_printedを入れてタグセット
         end
     else 複票印刷の場合
-        pc -> pc: 印刷
+        pc -> pt: 印刷
     end
-    pc -> b: 注文のpc_print_statusにvoucher_printedを入れてタグセット
+    pc -> b: 注文のpc_print_statusにvoucher_printedを入れてタグセット、かつDelete
+    note right
+        基本的には印刷が終わったら必ずBoardObjectをDeleteする
+    end note
 else kdの印刷タイミングを引き継がず、注文が入った直後に印刷する場合
     alt 単票印刷の場合
         loop 注文明細分
-            pc -> pc: 印刷
+            pc -> pt: 印刷
             pc -> b: 注文明細のpc_print_statusにvoucher_printedを入れてタグセット
         end
     else 複票印刷の場合
-        pc -> pc: 印刷
+        pc -> pt: 印刷
     end
-    pc -> b: 注文のpc_print_statusにvoucher_printedを入れてタグセット
+    pc -> b: 注文のpc_print_statusにvoucher_printedを入れてタグセット、かつDelete
 end
 
 ...
@@ -85,24 +90,24 @@ b -> pc: kitchen_statusタグにcookingが入ってくる
 alt kdの印刷タイミングを引き継ぐ、かつ「KDAppConfig.要調理で印刷する」がtrueの場合
     alt 単票印刷の場合
         loop 注文明細分
-            pc -> pc: 印刷
+            pc -> pt: 印刷
             pc -> b: 注文明細のpc_print_statusにvoucher_printedを入れてタグセット
         end
     else 複票印刷の場合
-        pc -> pc: 印刷
+        pc -> pt: 印刷
     end
-    pc -> b: 注文のpc_print_statusにvoucher_printedを入れてタグセット
+    pc -> b: 注文のpc_print_statusにvoucher_printedを入れてタグセット、かつDelete
 end
 
 ...
 
-b -> pc: kitchen_statusタグにcanceledが入ってくる
+b -> pc: kitchen_statusタグにcanceledが入ったObjectがAddされる
 alt 単票印刷の場合
     loop 注文明細分
-        pc -> pc: 印刷
+        pc -> pt: Payloadを見て印刷
         pc -> b: 注文明細のpc_print_statusにcancel_printedを入れてタグセット
     end
 else 複票印刷の場合
-    pc -> pc: 印刷
+    pc -> pt: Payloadと子のBoardObjectを見て印刷
 end
 pc -> b: 注文のpc_print_statusにcancel_printedを入れてタグセット、かつDelete

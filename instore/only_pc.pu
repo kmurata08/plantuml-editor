@@ -12,13 +12,13 @@ b -> pc: BoardObjects
 pc -> pc: キャンセルされた注文を取得
 note left
     ・kitchen_statusがcanceled
-    ・pc_print_statusがcancel_printedでない注文を取得
+    ・pc_cancel_print_statusがwaitingの注文を取得
 end note
 
 pc -> pc: 伝票未印刷の注文を取得
 note left
     ・kitchen_statusがcanceled以外
-    ・pc_print_statusがno_printedの注文
+    ・pc_print_statusがwaitingの注文
 end note
 
 ...
@@ -26,15 +26,14 @@ end note
 pc -> pc: 未印刷キャンセル伝票印刷
 loop 裁定された未印刷キャンセル伝票分
     alt 単票印刷する場合
-        pc -> pc: pc_print_statusがcancel_printedでない注文明細を取得
         loop 注文明細分
-            pc -> pt: 単票印刷
+            pc -> pt: キャンセル単票印刷
         end
     end
     alt 複票印刷する場合
-        pc -> pt: 複票印刷
+        pc -> pt: キャンセル複票印刷
     end
-    pc -> b: 注文のpc_print_statusにcancel_printedを入れてタグセット、かつDelete
+    pc -> b: 注文のpc_cancel_print_statusにprintedを入れてタグセット、かつDelete
 end
 
 pc -> pc: 未印刷伝票印刷
@@ -47,7 +46,7 @@ loop 注文分
     alt 複票印刷する場合
         pc -> pt: 複票印刷
     end
-    pc -> b: 注文のpc_print_statusにvoucher_printedを入れてタグセット、かつDelete
+    pc -> b: 注文のpc_print_statusにprintedを入れてタグセット、かつDelete
 end
 
 pc -> pc: subscribe
@@ -63,17 +62,17 @@ end
 alt 複票印刷する場合
     pc -> pt: 複票印刷
 end
-pc -> b: 注文のpc_print_statusにvoucher_printedを入れてタグセット
+pc -> b: 注文のpc_print_statusにprintedを入れてタグセット、かつBoardObjectDelete
 
 ...
 
 b -> pc: BoardObjectAddかつ、kitchen_statusがキャンセル
 alt 単票印刷する場合
     loop 注文明細分
-        pc -> pt: 単票印刷
+        pc -> pt: キャンセル単票印刷
     end
 end
 alt 複票印刷する場合
-    pc -> pt: 複票印刷
+    pc -> pt: キャンセル複票印刷
 end
-pc -> b: 注文のpc_print_statusにcancel_printedを入れてタグセット、かつBoardObjectDelete
+pc -> b: 注文のpc_cancel_print_statusにprintedを入れてタグセット、かつBoardObjectDelete

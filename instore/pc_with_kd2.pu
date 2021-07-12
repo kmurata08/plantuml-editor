@@ -97,7 +97,8 @@ alt 「KDApptonfig.印刷機能を使う」がtrueの場合
         end
     pc -> b: 注文のkd_cancel_print_statusにprintedを入れてタグセット
     note right
-        キャンセル伝票を印刷したら必ずDeleteされる
+        キャンセル後のDeleteは、スタッフのアクションによって行われるので、
+        ここではDeleteしない
     end note
 end
 

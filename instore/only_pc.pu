@@ -74,3 +74,23 @@ alt 複票印刷する場合
     pc -> pt: キャンセル複票印刷
 end
 pc -> b: 注文BoardObjectDelete
+
+== Subscribe中にネットワーク切断 ==
+pc -> pc: 最後にListenerで捌いたOperationPacketID(X)を持っておく
+
+... ネットワークが繋がる ...
+
+alt ネットワーク切断がされてから15分以内
+    pc -> b: OperationPacketIDを指定してSubscribe
+    b -> pc: ネットワーク切断中にPubされたOperationPacketを配信
+    alt OperationPacketの中にBoardObjectAddがある場合
+        pc -> pc: OperationPacketの中にBoardObjectAddがある場合には、帳票印刷
+        pc -> b: 注文BoardObjectDelete
+    end
+else ネットワーク切断がされてから15分以上
+    pc -> b: FetchBoard
+    b -> pc: 現在のBoard内のBoardObjectを取得
+    pc -> pc: 未印刷伝票印刷時と同じ処理を行う
+end
+
+pc -> pc: subscribe

@@ -21,15 +21,19 @@ alt 「KDApptonfig.印刷機能を使う」がtrueの場合
     pc -> pc: キャンセルされた注文を取得
     note left
         ・kitchen_statusがcanceled
-        ・kd_cancel_print_statusがwaitingの注文を取得
+        ・cancel_printed_atがない注文
     end note
 
     pc -> pc: 伝票未印刷の注文を取得
     note left
         ・「KDApptonfig.調理待ちで印刷する」がtrueの場合、
-        　　kitchen_statusがwaitingかつ、kd_waiting_print_statusがwaiting
+        　　kitchen_statusがwaitingかつ、waiting_printed_atがない。（そもそも印刷されてない）
+        　　または、kitchen_statusがwaitingかつ、waiting_printed_atがある場合、
+        　　端末のSQLiteにwaiting、かつそのboard_object_keyがない。（他端末で印刷されたが、その端末で印刷されていない）
         ・「KDApptonfig.要調理で印刷する」がtrueの場合、
-        　　kitchen_statusがcookingかつ、kd_cooking_print_statusがwaiting
+        　　kitchen_statusがcookingかつ、cooking_printed_atがない。（そもそも印刷されてない）
+        　　または、kitchen_statusがcookingかつ、cooking_printed_atがある場合、
+        　　端末のSQLiteにcooking、かつそのboard_object_keyがない。（他端末で印刷されたが、その端末で印刷されていない）
     end note
 
     ...
@@ -44,7 +48,8 @@ alt 「KDApptonfig.印刷機能を使う」がtrueの場合
         alt 複票印刷する場合
             pc -> pt: キャンセル複票印刷
         end
-        pc -> b: キャンセル注文のkd_cancel_print_statusにprintedを入れてタグセット
+        pc -> pc: 端末内のSQLiteに印刷済みboard object key、調理ステータス入れる
+        pc -> b: キャンセル注文のcancel_printed_atに現在日時を入れてタグセット
     end
 
     ...
@@ -59,7 +64,8 @@ alt 「KDApptonfig.印刷機能を使う」がtrueの場合
         alt 複票印刷する場合
             pc -> pt: 複票印刷
         end
-        pc -> b: 注文のkd_[KitchenStatus]_print_statusにprintedを入れてタグセット
+        pc -> pc: 端末内のSQLiteに印刷済みboard object key、調理ステータス入れる
+        pc -> b: 注文の[KitchenStatus]_printed_atに現在日時を入れてタグセット
     end
 end
 
@@ -67,7 +73,7 @@ pc -> pc: subscribe
 
 ...
 
-== kitchen_statusに更新がかかる ==
+== kitchen_statusに更新がかかる(A) ==
 b -> pc: kitchen_statusタグのcancel以外の更新
 alt 「KDApptonfig.印刷機能を使う」がtrueの場合
     alt 「KDApptonfig.[KitchenStatus]で印刷する」がtrueの場合
@@ -79,7 +85,8 @@ alt 「KDApptonfig.印刷機能を使う」がtrueの場合
         alt 複票印刷する場合
             pc -> pt: 複票印刷
         end
-        pc -> b: 注文のkd_[KitchenStatus]_print_statusにprintedを入れてタグセット
+        pc -> pc: 端末内のSQLiteに印刷済みboard object key、調理ステータス入れる
+        pc -> b: 注文の[KitchenStatus]_printed_atに現在日時を入れてタグセット
     end
 end
 
@@ -87,20 +94,32 @@ end
 
 b -> pc: kitchen_statusタグにcanceledが入ってくる
 alt 「KDApptonfig.印刷機能を使う」がtrueの場合
-        alt 単票印刷する場合
-            loop 注文明細分
-                pc -> pt: キャンセル単票印刷
-            end
+    alt 単票印刷する場合
+        loop 注文明細分
+            pc -> pt: キャンセル単票印刷
         end
-        alt 複票印刷する場合
-            pc -> pt: キャンセル複票印刷
-        end
-    pc -> b: 注文のkd_cancel_print_statusにprintedを入れてタグセット
+    end
+    alt 複票印刷する場合
+        pc -> pt: キャンセル複票印刷
+    end
+    pc -> pc: 端末内のSQLiteに印刷済みboard object key、調理ステータス入れる
+    pc -> b: 注文のcancel_printed_atに現在日時を入れてタグセット
     note right
         キャンセル後のDeleteは、スタッフのアクションによって行われるので、
         ここではDeleteしない
     end note
 end
+
+...
+
+== Subscribe中にネットワーク切断 ==
+
+... ネットワークが繋がる ...
+
+pc -> b: FetchBoardを叩く
+b -> pc: BoardObjects
+pc -> pc: 未印刷伝票印刷時と同じ印刷処理
+pc -> pc: subscribe
 
 ...
 

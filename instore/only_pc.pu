@@ -27,11 +27,20 @@ loop キャンセル注文分
         loop 注文明細分
             pc -> pt: キャンセル単票印刷
         end
+        pc -> b: 印刷したキャンセル注文明細ののBoardObjectDelete
+        pc -> b: キャンセル注文のBoardObjectConditionalDelete
+        note right
+            条件付きBoardObjectDelete
+        end note
+        alt キャンセル注文明細のBoardObjectが全てDeleteされている
+            b -> b: BoardObjectDelete
+            b -> pc: キャンセル注文BoardObjectDelete配信
+        end
     end
     alt 複票印刷する場合
         pc -> pt: キャンセル複票印刷
+        pc -> b: キャンセル注文BoardObjectDelete
     end
-    pc -> b: 注文BoardObjectDelete
 end
 
 pc -> pc: 未印刷伝票印刷
@@ -40,11 +49,23 @@ loop 注文分
         loop 注文明細分
             pc -> pt: 単票印刷
         end
+        pc -> b: 印刷した注文明細のBoardObjectDelete
+        pc -> b: 注文のBoardObjectConditionalDelete
+        alt 注文明細のBoardObjectが全てDeleteされている
+            b -> b: BoardObjectDelete
+            note right
+                印刷カテゴリに対応した場合も、
+                全ての単票が必ず1つの端末で印刷されてから、
+                複票である注文がDeleteされるので、
+                印刷されない単票が発生することはない
+            end note
+            b -> pc: 注文BoardObjectDelete配信
+        end
     end
     alt 複票印刷する場合
         pc -> pt: 複票印刷
+        pc -> b: 注文BoardObjectDelete
     end
-    pc -> b: 注文BoardObjectDelete
 end
 
 pc -> pc: subscribe
@@ -56,11 +77,17 @@ alt 単票印刷する場合
     loop 注文明細分
         pc -> pt: 単票印刷
     end
+    pc -> b: 印刷した注文明細のBoardObjectDelete
+    pc -> b: 注文のBoardObjectConditionalDelete
+    alt 注文明細のBoardObjectが全てDeleteされている
+        b -> b: BoardObjectDelete
+        b -> pc: 注文BoardObjectDelete配信
+    end
 end
 alt 複票印刷する場合
     pc -> pt: 複票印刷
+    pc -> b: 注文BoardObjectDelete
 end
-pc -> b: 注文BoardObjectDelete
 
 ...
 
@@ -69,11 +96,17 @@ alt 単票印刷する場合
     loop 注文明細分
         pc -> pt: キャンセル単票印刷
     end
+    pc -> b: 印刷したキャンセル注文明細ののBoardObjectDelete
+    pc -> b: キャンセル注文のBoardObjectConditionalDelete
+    alt キャンセル注文明細のBoardObjectが全てDeleteされている
+        b -> b: BoardObjectDelete
+        b -> pc: キャンセル注文BoardObjectDelete配信
+    end
 end
 alt 複票印刷する場合
     pc -> pt: キャンセル複票印刷
+    pc -> b: キャンセル注文BoardObjectDelete
 end
-pc -> b: 注文BoardObjectDelete
 
 == Subscribe中にネットワーク切断 ==
 pc -> pc: 最後にListenerで捌いたOperationPacketID(X)を持っておく
@@ -81,11 +114,42 @@ pc -> pc: 最後にListenerで捌いたOperationPacketID(X)を持っておく
 ... ネットワークが繋がる ...
 
 alt ネットワーク切断がされてから15分以内
-    pc -> b: OperationPacketIDを指定してSubscribe
+    pc -> b: 最後に印刷したBoardObjectが含まれていた、OperationPacketIDを指定してSubscribe
     b -> pc: ネットワーク切断中にPubされたOperationPacketを配信
     alt OperationPacketの中にBoardObjectAddがある場合
-        pc -> pc: OperationPacketの中にBoardObjectAddがある場合には、帳票印刷
-        pc -> b: 注文BoardObjectDelete
+        alt kitchen_statusがキャンセル以外
+            alt 単票印刷する場合
+                loop 注文明細分
+                    pc -> pt: 単票印刷
+                end
+                pc -> b: 印刷した注文明細のBoardObjectDelete
+                pc -> b: 注文のBoardObjectConditionalDelete
+                alt 注文明細のBoardObjectが全てDeleteされている
+                    b -> b: BoardObjectDelete
+                    b -> pc: 注文BoardObjectDelete配信
+                end
+            end
+            alt 複票印刷する場合
+                pc -> pt: 複票印刷
+                pc -> b: 注文BoardObjectDelete
+            end
+        else kitchen_statusがキャンセル
+            alt 単票印刷する場合
+                loop 注文明細分
+                    pc -> pt: キャンセル単票印刷
+                end
+                pc -> b: 印刷したキャンセル注文明細ののBoardObjectDelete
+                pc -> b: キャンセル注文のBoardObjectConditionalDelete
+                alt キャンセル注文明細のBoardObjectが全てDeleteされている
+                    b -> b: BoardObjectDelete
+                    b -> pc: キャンセル注文BoardObjectDelete配信
+                end
+            end
+            alt 複票印刷する場合
+                pc -> pt: キャンセル複票印刷
+                pc -> b: キャンセル注文BoardObjectDelete
+            end
+        end
     end
 else ネットワーク切断がされてから15分以上
     pc -> b: FetchBoard

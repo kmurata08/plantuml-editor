@@ -117,10 +117,10 @@ end
 
 ... ネットワークが繋がる ...
 
-pc -> b: FetchBoardを叩く
-b -> pc: BoardObjects
-pc -> pc: 未印刷伝票印刷時と同じ印刷処理
-pc -> pc: subscribe
+k -> b: FetchBoardを叩く
+b -> k: BoardObjects
+k -> k: 未印刷伝票印刷時と同じ印刷処理
+k -> k: subscribe
 
 ...
 

@@ -11,12 +11,12 @@ pc -> b: FetchBoard API
 b -> pc: BoardObjects
 pc -> pc: キャンセルされた注文を取得
 note left
-    ・kitchen_statusがcanceled
+    ・order_canceled_atタグがある
 end note
 
 pc -> pc: 伝票未印刷の注文を取得
 note left
-    ・kitchen_statusがcanceled以外
+    ・order_canceled_atタグがない
 end note
 
 ...
@@ -27,14 +27,13 @@ loop キャンセル注文分
         loop 注文明細分
             pc -> pt: キャンセル単票印刷
         end
-        pc -> b: 印刷したキャンセル注文明細ののBoardObjectDelete
-        pc -> b: キャンセル注文のBoardObjectConditionalDelete
+        pc -> b: 印刷したキャンセル注文明細のBoardObjectDeleteIfNoChilds
         note right
             条件付きBoardObjectDelete
         end note
         alt キャンセル注文明細のBoardObjectが全てDeleteされている
-            b -> b: BoardObjectDelete
-            b -> pc: キャンセル注文BoardObjectDelete配信
+            b -> b: BoardObjectDeleteIfNoChilds
+            b -> pc: キャンセル注文BoardObjectDeleteIfNoChilds配信
         end
     end
     alt 複票印刷する場合
@@ -49,17 +48,16 @@ loop 注文分
         loop 注文明細分
             pc -> pt: 単票印刷
         end
-        pc -> b: 印刷した注文明細のBoardObjectDelete
-        pc -> b: 注文のBoardObjectConditionalDelete
+        pc -> b: 印刷した注文明細のBoardObjectDeleteIfNoChilds
         alt 注文明細のBoardObjectが全てDeleteされている
-            b -> b: BoardObjectDelete
+            b -> b: BoardObjectDeleteIfNoChilds
             note right
                 印刷カテゴリに対応した場合も、
                 全ての単票が必ず1つの端末で印刷されてから、
                 複票である注文がDeleteされるので、
                 印刷されない単票が発生することはない
             end note
-            b -> pc: 注文BoardObjectDelete配信
+            b -> pc: 注文BoardObjectDeleteIfNoChilds配信
         end
     end
     alt 複票印刷する場合
@@ -72,16 +70,15 @@ pc -> pc: subscribe
 
 == Subscribe中のイベント ==
 
-b -> pc: BoardObjectAddかつ、kitchen_statusがキャンセル以外
+b -> pc: BoardObjectAddかつ、order_canceled_atタグがない
 alt 単票印刷する場合
     loop 注文明細分
         pc -> pt: 単票印刷
     end
-    pc -> b: 印刷した注文明細のBoardObjectDelete
-    pc -> b: 注文のBoardObjectConditionalDelete
+    pc -> b: 印刷した注文明細のBoardObjectDeleteIfNoChilds
     alt 注文明細のBoardObjectが全てDeleteされている
-        b -> b: BoardObjectDelete
-        b -> pc: 注文BoardObjectDelete配信
+        b -> b: BoardObjectDeleteIfNoChilds
+        b -> pc: 注文BoardObjectDeleteIfNoChilds配信
     end
 end
 alt 複票印刷する場合
@@ -91,16 +88,15 @@ end
 
 ...
 
-b -> pc: BoardObjectAddかつ、kitchen_statusがキャンセル
+b -> pc: BoardObjectAddかつ、order_canceled_atがある
 alt 単票印刷する場合
     loop 注文明細分
         pc -> pt: キャンセル単票印刷
     end
-    pc -> b: 印刷したキャンセル注文明細ののBoardObjectDelete
-    pc -> b: キャンセル注文のBoardObjectConditionalDelete
+    pc -> b: 印刷したキャンセル注文明細のBoardObjectDeleteIfNoChilds
     alt キャンセル注文明細のBoardObjectが全てDeleteされている
-        b -> b: BoardObjectDelete
-        b -> pc: キャンセル注文BoardObjectDelete配信
+        b -> b: BoardObjectDeleteIfNoChilds
+        b -> pc: キャンセル注文BoardObjectDeleteIfNoChilds配信
     end
 end
 alt 複票印刷する場合
@@ -117,32 +113,30 @@ alt ネットワーク切断がされてから15分以内
     pc -> b: 最後に印刷したBoardObjectが含まれていた、OperationPacketIDを指定してSubscribe
     b -> pc: ネットワーク切断中にPubされたOperationPacketを配信
     alt OperationPacketの中にBoardObjectAddがある場合
-        alt kitchen_statusがキャンセル以外
+        alt order_canceled_atタグがない
             alt 単票印刷する場合
                 loop 注文明細分
                     pc -> pt: 単票印刷
                 end
-                pc -> b: 印刷した注文明細のBoardObjectDelete
-                pc -> b: 注文のBoardObjectConditionalDelete
+                pc -> b: 印刷した注文明細のBoardObjectDeleteIfNoChilds
                 alt 注文明細のBoardObjectが全てDeleteされている
-                    b -> b: BoardObjectDelete
-                    b -> pc: 注文BoardObjectDelete配信
+                    b -> b: BoardObjectDeleteIfNoChilds
+                    b -> pc: 注文BoardObjectDeleteIfNoChilds配信
                 end
             end
             alt 複票印刷する場合
                 pc -> pt: 複票印刷
                 pc -> b: 注文BoardObjectDelete
             end
-        else kitchen_statusがキャンセル
+        else order_canceled_atタグがある
             alt 単票印刷する場合
                 loop 注文明細分
                     pc -> pt: キャンセル単票印刷
                 end
-                pc -> b: 印刷したキャンセル注文明細ののBoardObjectDelete
-                pc -> b: キャンセル注文のBoardObjectConditionalDelete
+                pc -> b: 印刷したキャンセル注文明細のBoardObjectDeleteIfNoChilds
                 alt キャンセル注文明細のBoardObjectが全てDeleteされている
-                    b -> b: BoardObjectDelete
-                    b -> pc: キャンセル注文BoardObjectDelete配信
+                    b -> b: BoardObjectDeleteIfNoChilds
+                    b -> pc: キャンセル注文BoardObjectDeleteIfNoChilds配信
                 end
             end
             alt 複票印刷する場合

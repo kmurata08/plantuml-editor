@@ -33,7 +33,7 @@ loop キャンセル注文分
         end note
         alt キャンセル注文明細のBoardObjectが全てDeleteされている
             b -> b: BoardObjectDeleteIfNoChilds
-            b -> pc: キャンセル注文BoardObjectDeleteIfNoChilds配信
+            b -> pc: キャンセル注文BoardObjectDelete配信
         end
     end
     alt 複票印刷する場合
@@ -57,7 +57,7 @@ loop 注文分
                 複票である注文がDeleteされるので、
                 印刷されない単票が発生することはない
             end note
-            b -> pc: 注文BoardObjectDeleteIfNoChilds配信
+            b -> pc: 注文BoardObjectDelete配信
         end
     end
     alt 複票印刷する場合
@@ -78,7 +78,7 @@ alt 単票印刷する場合
     pc -> b: 印刷した注文明細のBoardObjectDeleteIfNoChilds
     alt 注文明細のBoardObjectが全てDeleteされている
         b -> b: BoardObjectDeleteIfNoChilds
-        b -> pc: 注文BoardObjectDeleteIfNoChilds配信
+        b -> pc: 注文BoardObjectDelete配信
     end
 end
 alt 複票印刷する場合
@@ -96,7 +96,7 @@ alt 単票印刷する場合
     pc -> b: 印刷したキャンセル注文明細のBoardObjectDeleteIfNoChilds
     alt キャンセル注文明細のBoardObjectが全てDeleteされている
         b -> b: BoardObjectDeleteIfNoChilds
-        b -> pc: キャンセル注文BoardObjectDeleteIfNoChilds配信
+        b -> pc: キャンセル注文BoardObjectDelete配信
     end
 end
 alt 複票印刷する場合
@@ -121,7 +121,7 @@ alt ネットワーク切断がされてから15分以内
                 pc -> b: 印刷した注文明細のBoardObjectDeleteIfNoChilds
                 alt 注文明細のBoardObjectが全てDeleteされている
                     b -> b: BoardObjectDeleteIfNoChilds
-                    b -> pc: 注文BoardObjectDeleteIfNoChilds配信
+                    b -> pc: 注文BoardObjectDelete配信
                 end
             end
             alt 複票印刷する場合
@@ -136,7 +136,7 @@ alt ネットワーク切断がされてから15分以内
                 pc -> b: 印刷したキャンセル注文明細のBoardObjectDeleteIfNoChilds
                 alt キャンセル注文明細のBoardObjectが全てDeleteされている
                     b -> b: BoardObjectDeleteIfNoChilds
-                    b -> pc: キャンセル注文BoardObjectDeleteIfNoChilds配信
+                    b -> pc: キャンセル注文BoardObjectDelete配信
                 end
             end
             alt 複票印刷する場合

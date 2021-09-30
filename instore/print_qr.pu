@@ -1,4 +1,4 @@
-title QRコード印刷
+title チェックインQR印刷
 
 participant Toyouke as t
 participant OrderAdapter as o
@@ -11,24 +11,24 @@ end box
 
 pc -> pc: 端末起動
 
-== QRコード印刷 ==
+== チェックインQR印刷 ==
 
 b <- pc: FetchBoard
 b --> pc: 生きているBoardObject一覧
 
 loop 全てのBoardObject
-    pc -> pc: QRコード生成
+    pc -> pc: チェックインQR生成
     note left
         PrintControllerは
         Boardから受け取ったチェックインのURLを元に
-        QRコードを生成する
+        チェックインQRを生成する
     end note
-    pc -> pt: QRコード印刷
+    pc -> pt: チェックインQR印刷
     pc <-- pt: 成功
     b <- pc: BoardObjectDelete
     b --> pc: 成功
-    o <- pc: QRコード印刷完了通知
-    t <- o: QRコード印刷完了通知
+    o <- pc: チェックインQR印刷完了通知
+    t <- o: チェックインQR印刷完了通知
     t --> o: 成功
     o --> pc: 成功
 end
@@ -37,30 +37,30 @@ b <-> pc: subscribe
 
 == Subscribe中のイベント ==
 
-t <- fm: QRコード印刷依頼
-t -> o: QRコード印刷依頼
-o -> t: QRコード用URL取得
-o <-- t: QRコード用URL
-o -> b: QRコード印刷Publish
-b -> pc: QRコード印刷Publish
+t <- fm: チェックインQR印刷依頼
+t -> o: チェックインQR印刷依頼
+o -> t: チェックインQR用URL取得
+o <-- t: チェックインQR用URL
+o -> b: チェックインQR印刷Publish
+b -> pc: チェックインQR印刷Publish
 b <-- pc: 成功
 o <-- b: 成功
 t <-- o: 成功
 t --> fm: 成功
-pc -> pc: QRコード生成
-pc -> pt: QRコード印刷
+pc -> pc: チェックインQR生成
+pc -> pt: チェックインQR印刷
 pc <-- pt: 成功
 b <- pc: BoardObjectDelete
 b --> pc: 成功
-o <- pc: QRコード印刷完了通知
+o <- pc: チェックインQR印刷完了通知
 note right
     何をkeyとして送る？
 end note
-t <- o: QRコード印刷完了通知
+t <- o: チェックインQR印刷完了通知
 t --> o: 成功
 o --> pc: 成功
 
 == ネットワーク切断がされた ==
 pc -> b: FetchBoard
 b --> pc: 現在のBoard内のBoardObject一覧
-pc -> pc: 未印刷QRコード印刷時と同じ処理を行う
+pc -> pc: 未印刷チェックイン印刷時と同じ処理を行う

@@ -1,7 +1,6 @@
 title チェックインQR印刷
 
-participant Toyouke as t
-participant OrderAdapter as o
+participant OderBE as o
 participant Board as b
 box "店内機器" #LightBlue
     participant PrintController as pc
@@ -28,25 +27,19 @@ loop 全てのBoardObject
     b <- pc: BoardObjectDelete
     b --> pc: 成功
     o <- pc: チェックインQR印刷完了通知
-    t <- o: チェックインQR印刷完了通知
-    t --> o: 成功
     o --> pc: 成功
 end
 
 b <-> pc: subscribe
 
-== Subscribe中のイベント ==
+== Subscrio中のイベント ==
 
-t <- fm: チェックインQR印刷依頼
-t -> o: チェックインQR印刷依頼
-o -> t: チェックインQR用URL取得
-o <-- t: チェックインQR用URL
+o <- fm: チェックインQR印刷依頼
 o -> b: チェックインQR印刷Publish
 b -> pc: チェックインQR印刷Publish
 b <-- pc: 成功
 o <-- b: 成功
-t <-- o: 成功
-t --> fm: 成功
+o --> fm: 成功
 pc -> pc: チェックインQR生成
 pc -> pt: チェックインQR印刷
 pc <-- pt: 成功
@@ -56,8 +49,6 @@ o <- pc: チェックインQR印刷完了通知
 note right
     何をkeyとして送る？
 end note
-t <- o: チェックインQR印刷完了通知
-t --> o: 成功
 o --> pc: 成功
 
 == ネットワーク切断がされた ==

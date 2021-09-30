@@ -1,7 +1,7 @@
 title 会計明細印刷
 
-participant Toyouke as t
-participant OrderAdapter as o
+participant OderTable as ot
+participant OderBE as o
 participant Board as b
 
 box "店内機器" #LightBlue
@@ -22,8 +22,6 @@ loop 全てのBoardObject
     b <- pc: BoardObjectDelete
     b --> pc: 成功
     o <- pc: 会計明細印刷完了通知
-    t <- o: 会計明細印刷完了通知
-    t --> o: 成功
     o --> pc: 成功
 end
 
@@ -31,14 +29,12 @@ b <-> pc: subscribe
 
 == Subscribe中のイベント ==
 
-t -> o: 会計明細印刷依頼
-o -> t: 会計情報取得
-o <-- t: 会計情報
+ot -> o: 会計リクエスト
 o -> b: 会計明細印刷Publish
 b -> pc: 会計明細印刷Publish
 b <-- pc: 成功
 o <-- b: 成功
-t <-- o: 成功
+ot <-- o: 成功
 pc -> pt: 会計明細印刷Publish
 pc <-- pt: 成功
 b <- pc: BoardObjectDelete
@@ -47,8 +43,6 @@ o <- pc: 会計明細印刷完了通知
 note right
     伝票番号をkeyとして送る
 end note
-t <- o: 会計明細印刷完了通知
-t --> o: 成功
 o --> pc: 成功
 
 == ネットワーク切断がされた ==

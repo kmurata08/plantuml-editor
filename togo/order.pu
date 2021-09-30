@@ -1,0 +1,129 @@
+@startuml
+title 注文
+
+actor user
+participant togo_front as uf
+participant oder_backend as be
+participant toyouke
+participant instore
+participant kitchen_display as kd
+actor staff
+
+== 注文（正常系) ==
+user -> uf: 商品注文ポチ
+uf -> be:
+be -> be: 注文番号・受取番号生成
+note right: 生成はOderBackend
+be -> toyouke: 注文
+alt 事前決済の場合
+    toyouke -> toyouke: オンライン決済処理
+    note right: 「決済処理の詳細は支払方法によって変更
+end
+
+toyouke -> instore: 注文リクエスト(webhook)\rAccountingEvent.VoucherCreatedV1
+instore -> instore: 何もしない
+toyouke <- instore: 成功
+note right: webhookは非同期
+be <- toyouke: 注文リクエスト(webhook)\rAccountingEvent.VoucherCreatedV1
+be <- be: サービス側の内部処理
+uf <-- be: 注文成功
+user <- uf: 注文完了画面(受取番号表示)
+
+be -> toyouke: 決済完了通知(webhook)\rAccountingEvent.VoucherCheckedOutV1
+toyouke -> instore: 決済完了通知(webhook)\rAccountingEvent.VoucherCheckedOutV1
+instore -> instore: 何もしない
+toyouke <- instore: 成功
+
+toyouke -> instore: 注文受付へのステータス変更通知(webhook)\rOrderEvent.StateUpdatedV1
+toyouke <- instore: 注文詳細取得
+toyouke -> instore: 注文詳細
+toyouke <- instore: 伝票情報取得
+toyouke -> instore: 伝票情報
+instore -> kd: SubscribeしているKDへ注文を反映
+kd -> kd: 全デバイスで注文が調理予約タブへ表示される
+kd --> staff: 調理確定注文が入ったことを知る
+instore <- kd: 注文投入成功
+toyouke <- instore: 成功
+
+...
+
+
+== 要調理 ==
+
+alt 自動で調理開始時間n分前になったら変更
+    instore <- kd: 調理開始日時タグセット
+    note right
+        調理開始日時は提供予定日時をもとに算出される
+    end note
+    instore -> kd: 調理開始日時タグを全台に配信
+else 手動で要調理への変更をする
+    kd <- staff: 要調理へカードを移動させる
+    instore <- kd: 調理開始日時タグセット
+    instore -> kd: 調理開始日時タグを全台に配信
+end
+
+kd -> kd: 全デバイスで注文が要調理タブへ移動
+staff -> staff: 調理
+
+== 調理完了 ==
+kd <- staff: 調理完了ボタンを押す
+instore <- kd: 調理完了通知
+toyouke <- instore: 調理完了
+toyouke -> be: 調理完了通知(webhook)\rOrderEvent.StateUpdatedV1:ORDER_STATE_READY
+be -> be: サービス側の内部処理
+user <- be: 調理完了メール
+
+instore <- kd: 調理完了日時タグセット変更
+instore -> kd: 調理完了日時タグを全台に配信
+kd -> kd: 全デバイスで注文が調理完了タブへ移動
+
+...
+user -> user: 来店
+kd <- staff: お渡し完了ボタンを押す
+instore <- kd: お渡し完了日時タグセット & ボードオブジェクト削除
+instore -> kd: お渡し完了日時タグ & ボードオブジェクト削除 を全台に配信
+kd -> kd: 全デバイスで注文がお渡し完了タブへ移動
+toyouke <- instore: お渡し完了
+be <- toyouke: お渡し完了通知(webhook)\rOrderEvent.StateUpdatedV1:ORDER_STATE_DELIVERED
+be -> be: サービス側の取引完了処理
+be -> toyouke:  注文ステータス（取引完了）連携
+toyouke -> instore: 注文ステータス（取引完了）\rAccountingEvent.VoucherCheckedOutV1
+user <- be: お渡し完了メール
+instore -> instore:  何もしない
+
+user -> user: いただきます
+
+
+== キャンセル(KDから) ==
+
+kd <- staff: 注文キャンセルボタンを押す
+instore <- kd: 注文キャンセル通知
+toyouke <- instore: 注文キャンセル通知
+be <- toyouke: 注文キャンセル通知(webhook)\rOrderEvent.StateUpdatedV1:ORDER_STATE_CANCELED
+be -> be: サービス側のキャンセル処理
+instore <- toyouke: 注文キャンセル通知(webhook)\rOrderEvent.StateUpdatedV1:ORDER_STATE_CANCELED
+instore <- instore: 注文キャンセル処理
+instore -> kd: SubscribeしているKDへ取り消しを反映
+note right: キャンセル失敗時にinstoreのほうが消えっぱなしになってしまう
+
+== キャンセル(CMSから) ==
+
+oder_cms <- staff: 注文キャンセルボタンを押す
+be <- oder_cms: 注文キャンセル
+toyouke <- be: 注文キャンセル
+be <- toyouke: 注文キャンセル通知(webhook)\rOrderEvent.StateUpdatedV1:ORDER_STATE_CANCELED
+be -> be: サービス側のキャンセル処理
+instore <- toyouke: 注文キャンセル通知(webhook)\rOrderEvent.StateUpdatedV1:ORDER_STATE_CANCELED
+instore <- instore: 注文キャンセル処理
+instore -> kd: SubscribeしているKDへ取り消しを反映
+
+== キャンセル(BEから) ==
+
+toyouke <- be: 注文キャンセル
+be <- toyouke: 注文キャンセル通知(webhook)\rOrderEvent.StateUpdatedV1:ORDER_STATE_CANCELED
+be -> be: サービス側のキャンセル処理
+instore <- toyouke: 注文キャンセル通知(webhook)\rOrderEvent.StateUpdatedV1:ORDER_STATE_CANCELED
+instore <- instore: 注文キャンセル処理
+instore -> kd: SubscribeしているKDへ取り消しを反映
+
+@enduml
